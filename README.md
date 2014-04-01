@@ -1,4 +1,3 @@
-======================
 MediaStorePhotoAdapter
 ======================
 copyright(c) 2014 saki t_saki@serenegiant
