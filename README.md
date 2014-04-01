@@ -1,8 +1,9 @@
 ======================
 MediaStorePhotoAdapter
-copyright(c) 2014 saki t_saki@serenegiant
-Licensed under the Apache License, Version 2.0 (the "License");
 ======================
+copyright(c) 2014 saki t_saki@serenegiant
+
+Licensed under the Apache License, Version 2.0 (the "License");
  
  MediaStorePhotoAdapter is a descendent of CursorAdapter that can load images asynchronusly
  from MediaStore.Images.Thumbnails and set them to ImageView(that id is R.id.thumbnail)
