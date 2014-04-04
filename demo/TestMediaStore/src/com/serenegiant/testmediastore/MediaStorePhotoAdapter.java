@@ -286,9 +286,7 @@ public class MediaStorePhotoAdapter extends CursorAdapter {
 				mSelection, mSelectionArgs, MediaStore.Images.Media.DEFAULT_SORT_ORDER);
 		}
 		if (mMediaInfoCursor.moveToPosition(position)) {
-			if (mMediaInfoCursor.moveToFirst()) {				
-				info = readMediaInfo(mMediaInfoCursor, new MediaInfo());
-			} 
+			info = readMediaInfo(mMediaInfoCursor, new MediaInfo());
 		}
 		return info;
 	}
