@@ -33,6 +33,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -779,24 +780,19 @@ public class MediaStorePhotoAdapter extends CursorAdapter {
         	
 			if (mLoader != null)
 				mLoader.cancelLoad();
-
-			if ((mBitmap == null)
-				|| (mLoader == null)
-				|| (mLoader.mId != id)) {	
-				
-				// try to get from internal thumbnail cache
-				final Bitmap newBitmap = sThumbnailCache.get(id);
-				if (newBitmap == null) {
-					// only start loading if the thumbnail does not exist in internal thumbnail cache
-					mBitmap = null;
-					if (mLoader == null)
-						mLoader = new ThumbnailLoader(this);
-					mLoader.startLoad(id);
-				} else {
-					setBitmap(newBitmap);
-				}
+			
+			// try to get from internal thumbnail cache
+			final Bitmap newBitmap = sThumbnailCache.get(id);
+			if (newBitmap == null) {
+				// only start loading if the thumbnail does not exist in internal thumbnail cache
+				mBitmap = null;
+				// re-using ThumbnailLoader will cause several problems on some devices...
+				mLoader = new ThumbnailLoader(this);
+				mLoader.startLoad(id);
+			} else {
+				setBitmap(newBitmap);
 			}
-	        invalidateSelf();
+			invalidateSelf();
 		}
 
 		private void setBitmap(Bitmap bitmap) {
@@ -812,12 +808,13 @@ public class MediaStorePhotoAdapter extends CursorAdapter {
 	 */
 	private static final class ThumbnailLoader implements Runnable {
 		private final LoaderDrawable mParent;
+		private final FutureTask<Bitmap> mTask;
 		private long mId;
 		private Bitmap mBitmap;
-		private boolean mIsCanceled;
 		
 	    public ThumbnailLoader(LoaderDrawable parent) {
 	    	mParent = parent;
+			mTask = new FutureTask<Bitmap>(this, null); 
 	    }
 	    
 	    /**
@@ -826,17 +823,15 @@ public class MediaStorePhotoAdapter extends CursorAdapter {
 	     */
 		public synchronized void startLoad(long id) {
 			mId = id;
-			mIsCanceled = false;
-			EXECUTER.execute(this);
+			mBitmap = null;
+			EXECUTER.execute(mTask);
 		}
 		
 		/**
 		 * cancel loading
 		 */
-		public synchronized void cancelLoad() {
-			// Removes this runnable from the executor's internal queue if it is present,
-			if (EXECUTER.remove(this))
-				mIsCanceled = true;
+		public void cancelLoad() {
+			mTask.cancel(true);
 		}
 
 		@Override
@@ -844,16 +839,15 @@ public class MediaStorePhotoAdapter extends CursorAdapter {
 			long id;
 			synchronized(this) {
 				id = mId;
-				mBitmap = null;
 			}
-			if (!mIsCanceled) {
+			if (!mTask.isCancelled()) {
 				try {
 					mBitmap = getThumbnail(mParent.mContentResolver, id, mThumbnailWidth, mThumbnailHeight); 
 				} catch (Exception e) {
 					if (DEBUG) Log.w(TAG, e);
 				}
 			}
-			if (mIsCanceled || (id != mId) || (mBitmap == null)) {
+			if (mTask.isCancelled() || (id != mId) || (mBitmap == null)) {
 				return;	// return without callback
 			}
 			// set callback
